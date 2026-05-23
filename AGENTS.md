@@ -8,7 +8,7 @@ This repository contains "AI Agents for Beginners" - a comprehensive educational
 - Python 3.12+
 - Jupyter Notebooks for interactive learning
 - AI Frameworks: Microsoft Agent Framework (MAF)
-- Azure AI Services: Microsoft Foundry, Azure AI Foundry Agent Service V2
+- Providers: Azure AI Foundry, OpenAI, GitHub Models, MiniMax, and OpenAI-compatible endpoints
 
 **Architecture:**
 - Lesson-based structure (00-15+ directories)
@@ -20,8 +20,8 @@ This repository contains "AI Agents for Beginners" - a comprehensive educational
 
 ### Prerequisites
 - Python 3.12 or higher
-- Azure subscription (for Azure AI Foundry)
-- Azure CLI installed and authenticated (`az login`)
+- Azure subscription and Azure CLI only when using Azure AI Foundry
+- OpenAI, GitHub Models, MiniMax, or compatible endpoint credentials when using non-Azure providers
 
 ### Initial Setup
 
@@ -52,7 +52,19 @@ This repository contains "AI Agents for Beginners" - a comprehensive educational
 
 ### Required Environment Variables
 
-For **Azure AI Foundry** (Required):
+For **provider selection**:
+- `AI_AGENT_PROVIDER` - Optional provider override: `azure`, `openai`, `github`, `minimax`, or `openai-compatible`
+
+For **OpenAI**:
+- `OPENAI_API_KEY` - OpenAI API key
+- `OPENAI_MODEL_ID` - Model name (e.g., gpt-4o-mini)
+
+For **OpenAI-compatible endpoints**:
+- `OPENAI_BASE_URL` - Compatible endpoint URL
+- `OPENAI_API_KEY` - Provider API key, or a placeholder for local endpoints
+- `OPENAI_MODEL_ID` - Model name
+
+For **Azure AI Foundry**:
 - `AZURE_AI_PROJECT_ENDPOINT` - Azure AI Foundry project endpoint
 - `AZURE_AI_MODEL_DEPLOYMENT_NAME` - Model deployment name (e.g., gpt-4o)
 
@@ -60,7 +72,7 @@ For **Azure AI Search** (Lesson 05 - RAG):
 - `AZURE_SEARCH_SERVICE_ENDPOINT` - Azure AI Search endpoint
 - `AZURE_SEARCH_API_KEY` - Azure AI Search API key
 
-Authentication: Run `az login` before running notebooks (uses `AzureCliCredential`).
+Authentication: Run `az login` before running notebooks only when `AI_AGENT_PROVIDER=azure`.
 
 ## Development Workflow
 
@@ -81,10 +93,10 @@ Each lesson contains multiple Jupyter notebooks for different frameworks:
 
 ### Working with Microsoft Agent Framework
 
-**Microsoft Agent Framework + Azure AI Foundry:**
-- Requires Azure subscription
-- Uses `AzureAIProjectAgentProvider` for Agent Service V2 (agents visible in Foundry portal)
-- Production-ready with built-in observability
+**Microsoft Agent Framework + shared provider helper:**
+- Uses `shared/agent_provider.py` to create agents with Azure AI Foundry, OpenAI, GitHub Models, MiniMax, or another OpenAI-compatible endpoint
+- Preserves the `provider.create_agent(...)` pattern across notebooks
+- Azure remains available for production-ready Foundry workflows and observability
 - File pattern: `*-python-agent-framework.ipynb`
 
 ## Testing Instructions
@@ -241,8 +253,9 @@ Recommended progression through lessons:
 ### Framework Selection
 
 Choose framework based on your goals:
-- **All lessons**: Microsoft Agent Framework (MAF) with `AzureAIProjectAgentProvider`
-- **Agents register server-side** in Azure AI Foundry Agent Service V2 and are visible in the Foundry portal
+- **All Python lessons**: Microsoft Agent Framework (MAF) with `shared.agent_provider.create_provider()`
+- **Azure mode**: Agents use Azure AI Foundry when `AI_AGENT_PROVIDER=azure` or no non-Azure credentials are detected
+- **Non-Azure mode**: Agents use OpenAI-compatible chat clients when OpenAI, GitHub Models, MiniMax, or custom endpoint variables are configured
 
 ### Getting Help
 
@@ -298,6 +311,7 @@ Format: `<lesson-number>-python-agent-framework.ipynb`
 
 Key packages from `requirements.txt`:
 - `agent-framework` - Microsoft Agent Framework
+- `agent-framework-foundry` - Microsoft Foundry provider integration
 - `a2a-sdk` - Agent-to-Agent protocol support
 - `azure-ai-inference`, `azure-ai-projects` - Azure AI services
 - `azure-identity` - Azure authentication (AzureCliCredential)

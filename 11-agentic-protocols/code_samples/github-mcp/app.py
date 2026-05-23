@@ -1,7 +1,10 @@
+from shared.agent_provider import create_provider, describe_provider
 import os
 import json
 import logging
-logging.getLogger("agent_framework.azure").setLevel(logging.ERROR)
+
+import sys
+from pathlib import Path
 from typing import Annotated
 from dotenv import load_dotenv
 import requests
@@ -11,17 +14,24 @@ import chainlit as cl
 from mcp import ClientSession
 
 from agent_framework import tool, AgentResponseUpdate, WorkflowBuilder
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
 from azure.core.credentials import AzureKeyCredential
 
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex, SimpleField, SearchFieldDataType, SearchableField
 
+current_file = Path(__file__).resolve()
+repo_root = next(
+    (p for p in [current_file.parent, *current_file.parents]
+     if (p / "shared").exists()),
+    Path.cwd(),
+)
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
 
 # Load environment variables
-load_dotenv()
+load_dotenv(repo_root / ".env")
 
 # Configure logging
 logging.basicConfig(
@@ -76,7 +86,8 @@ except FileNotFoundError:
     markdown_content = ""
 
 # Split the markdown content into individual event descriptions
-event_descriptions = markdown_content.split("---")  # You can change the delimiter
+event_descriptions = markdown_content.split(
+    "---")  # You can change the delimiter
 
 # Create documents for Azure Search
 documents = []
@@ -89,11 +100,12 @@ for i, description in enumerate(event_descriptions):
 if documents:
     # Delete existing documents first to avoid duplicates
     try:
-        search_client.delete_documents(documents=[{"id": doc["id"]} for doc in documents])
+        search_client.delete_documents(
+            documents=[{"id": doc["id"]} for doc in documents])
         print("Cleared existing documents")
     except Exception as e:
         print(f"Warning: Failed to clear existing documents: {str(e)}")
-    
+
     # Upload new documents
     search_client.upload_documents(documents)
     print(f"Uploaded {len(documents)} documents to index")
@@ -115,11 +127,13 @@ def search_events(
         context_strings.append(f"Error searching Azure Search: {str(e)}")
     # Live API (example: Devpost hackathons)
     try:
-        api_resp = requests.get(f"https://devpost.com/api/hackathons?search={query}", timeout=5)
+        api_resp = requests.get(
+            f"https://devpost.com/api/hackathons?search={query}", timeout=5)
         if api_resp.ok:
             data = api_resp.json()
             for event in data.get('hackathons', [])[:5]:
-                context_strings.append(f"Live Event: {event.get('title')} - {event.get('url')}")
+                context_strings.append(
+                    f"Live Event: {event.get('title')} - {event.get('url')}")
     except Exception as e:
         context_strings.append(f"Error fetching live events: {str(e)}")
     if context_strings:
@@ -221,11 +235,12 @@ async def on_mcp(connection, session: ClientSession):
     mcp_tools = cl.user_session.get("mcp_tools", {})
     mcp_tools[connection.name] = tools
     cl.user_session.set("mcp_tools", mcp_tools)
-    
+
     # Log available tools
     print(f"Available MCP tools for {connection.name}:")
     for t in tools:
         print(f"  - {t['name']}: {t['description']}")
+
 
 @cl.step(type="tool")
 async def call_tool(tool_use):
@@ -267,8 +282,16 @@ async def call_tool(tool_use):
 @cl.on_chat_start
 async def on_chat_start():
 
-    # Create the Azure AI Foundry Agent Service provider
-    provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+    # Create the configured model provider
+    try:
+        provider = create_provider()
+        logger.info("Provider configured: %s", describe_provider(provider))
+    except Exception as e:
+        logger.exception("Provider initialization failed")
+        await cl.Message(
+            content=f"Provider configuration error: {e}. Check your .env settings and restart the chat."
+        ).send()
+        return
 
     # Create agents using MAF
     github_agent = await provider.create_agent(
@@ -341,11 +364,13 @@ async def on_message(message: cl.Message):
 
     # If more than one agent is selected, use the workflow
     if len(agent_names) > 1:
-        answer = cl.Message(content="Processing your request using: {}...\n\n".format(", ".join(agent_names)))
+        answer = cl.Message(content="Processing your request using: {}...\n\n".format(
+            ", ".join(agent_names)))
         await answer.send()
         agent_responses = []
         try:
-            events = workflow.run(user_input, stream=True, tools=[search_events])
+            events = workflow.run(user_input, stream=True,
+                                  tools=[search_events])
             last_author = None
             async for event in events:
                 if event.type == "output" and isinstance(event.data, AgentResponseUpdate):
@@ -359,14 +384,17 @@ async def on_message(message: cl.Message):
                     if update.text:
                         await answer.stream_token(update.text)
                         agent_responses.append(f"**{author}**: {update.text}")
-            full_response = "".join(agent_responses) if agent_responses else answer.content
-            conversation_history.append({"role": "assistant", "content": full_response})
+            full_response = "".join(
+                agent_responses) if agent_responses else answer.content
+            conversation_history.append(
+                {"role": "assistant", "content": full_response})
             cl.user_session.set("conversation_history", conversation_history)
             answer.content = full_response
             await answer.update()
         except Exception as e:
             await answer.stream_token(f"\n\n❌ Error: {str(e)}\n\n")
-            conversation_history.append({"role": "assistant", "content": f"Error: {str(e)}"})
+            conversation_history.append(
+                {"role": "assistant", "content": f"Error: {str(e)}"})
             cl.user_session.set("conversation_history", conversation_history)
             answer.content += f"\n\n❌ Error: {str(e)}"
             await answer.update()
@@ -380,18 +408,22 @@ async def on_message(message: cl.Message):
         }
         agent = agent_map.get(agent_name, github_agent)
 
-        answer = cl.Message(content=f"Processing your request using {agent_name}...\n\n")
+        answer = cl.Message(
+            content=f"Processing your request using {agent_name}...\n\n")
         await answer.send()
         try:
-            tools_for_agent = [search_events] if agent_name == "EventsAgent" else []
+            tools_for_agent = [
+                search_events] if agent_name == "EventsAgent" else []
             response = await agent.run(user_input, tools=tools_for_agent)
             answer.content = str(response)
-            conversation_history.append({"role": "assistant", "content": answer.content})
+            conversation_history.append(
+                {"role": "assistant", "content": answer.content})
             cl.user_session.set("conversation_history", conversation_history)
             await answer.update()
         except Exception as e:
             await answer.stream_token(f"\n\n❌ Error: {str(e)}\n\n")
-            conversation_history.append({"role": "assistant", "content": f"Error: {str(e)}"})
+            conversation_history.append(
+                {"role": "assistant", "content": f"Error: {str(e)}"})
             cl.user_session.set("conversation_history", conversation_history)
             answer.content += f"\n\n❌ Error: {str(e)}"
             await answer.update()

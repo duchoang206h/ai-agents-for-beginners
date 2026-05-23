@@ -64,17 +64,15 @@ SDKs like the Microsoft Agent Framework offer pre-built components such as AI co
 
 **How it works in practice**: You can use a pre-built parser to extract information from user input, a memory module to store and retrieve data, and a prompt generator to interact with users, all without having to build these components from scratch.
 
-**Example code**. Let's look at an example of how you can use the Microsoft Agent Framework with `AzureAIProjectAgentProvider` to have the model respond to user input with tool calling:
+**Example code**. Let's look at an example of how you can use the Microsoft Agent Framework with the shared provider helper to have the model respond to user input with tool calling. The same code can run against Azure AI Foundry, OpenAI, GitHub Models, MiniMax, or another OpenAI-compatible endpoint based on your `.env` configuration:
 
 ``` python
 # Microsoft Agent Framework Python Example
 
 import asyncio
-import os
 from typing import Annotated
 
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
 
 # Define a sample tool function to book travel
@@ -84,7 +82,7 @@ def book_flight(date: str, location: str) -> str:
 
 
 async def main():
-    provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+    provider = create_provider()
     agent = await provider.create_agent(
         name="travel_agent",
         instructions="Help the user book travel. Use the book_flight tool when ready.",
@@ -116,10 +114,9 @@ Frameworks like the Microsoft Agent Framework facilitate the creation of multipl
 # Creating multiple agents that work together using the Microsoft Agent Framework
 
 import os
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
-provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+provider = create_provider()
 
 # Data Retrieval Agent
 agent_retrieve = await provider.create_agent(
@@ -157,14 +154,14 @@ There are many ways to compare these approaches, but let's look at some key diff
 
 ## Microsoft Agent Framework (MAF)
 
-The Microsoft Agent Framework provides a streamlined SDK for building AI agents using `AzureAIProjectAgentProvider`. It enables developers to create agents that leverage Azure OpenAI models with built-in tool calling, conversation management, and enterprise-grade security through Azure identity.
+The Microsoft Agent Framework provides a streamlined SDK for building AI agents with tools, conversation management, and workflow orchestration. In this course, `shared.agent_provider.create_provider()` keeps the samples provider-agnostic while preserving the same `provider.create_agent(...)` shape across Azure AI Foundry and OpenAI-compatible providers.
 
 **Use Cases**: Building production-ready AI agents with tool use, multi-step workflows, and enterprise integration scenarios.
 
 Here are some important core concepts of the Microsoft Agent Framework:
 
-- **Agents**. An agent is created via `AzureAIProjectAgentProvider` and configured with a name, instructions, and tools. The agent can:
-  - **Process user messages** and generate responses using Azure OpenAI models.
+- **Agents**. An agent is created via the configured provider and assigned a name, instructions, and tools. The agent can:
+  - **Process user messages** and generate responses using the configured model provider.
   - **Call tools** automatically based on the conversation context.
   - **Maintain conversation state** across multiple interactions.
 
@@ -172,10 +169,9 @@ Here are some important core concepts of the Microsoft Agent Framework:
 
     ```python
     import os
-    from agent_framework.azure import AzureAIProjectAgentProvider
-    from azure.identity import AzureCliCredential
+    from shared.agent_provider import create_provider
 
-    provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+    provider = create_provider()
     agent = await provider.create_agent(
         name="my_agent",
         instructions="You are a helpful assistant.",
@@ -217,7 +213,7 @@ Here are some important core concepts of the Microsoft Agent Framework:
     result = await executor.run(f"Execute this plan: {plan}")
     ```
 
-- **Azure Identity Integration**. The framework uses `AzureCliCredential` (or `DefaultAzureCredential`) for secure, keyless authentication, eliminating the need to manage API keys directly.
+- **Provider Integration**. The framework can use OpenAI-compatible API keys for non-Azure providers and `AzureCliCredential` (or `DefaultAzureCredential`) for secure, keyless Azure authentication.
 
 ## Azure AI Agent Service
 
@@ -329,7 +325,7 @@ Azure AI Agent Service has the following core concepts:
 
     In the previous code, a thread is created. Thereafter, a message is sent to the thread. By calling `create_and_process_run`, the agent is asked to perform work on the thread. Finally, the messages are fetched and logged to see the agent's response. The messages indicate the progress of the conversation between the user and the agent. It's also important to understand that the messages can be of different types such as text, image, or file, that is the agents work has resulted in for example an image or a text response for example. As a developer, you can then use this information to further process the response or present it to the user.
 
-- **Integrates with the Microsoft Agent Framework**. Azure AI Agent Service works seamlessly with the Microsoft Agent Framework, which means you can build agents using `AzureAIProjectAgentProvider` and deploy them through the Agent Service for production scenarios.
+- **Integrates with the Microsoft Agent Framework**. Azure AI Agent Service works seamlessly with the Microsoft Agent Framework for production scenarios. In this course, the shared provider helper keeps the local samples portable while preserving an Azure path when you need Foundry-hosted capabilities.
 
 **Use Cases**: Azure AI Agent Service is designed for enterprise applications that require secure, scalable, and flexible AI agent deployment.
 
@@ -337,7 +333,7 @@ Azure AI Agent Service has the following core concepts:
  
 It does sound like there is overlap, but there are some key differences in terms of their design, capabilities, and target use cases:
  
-- **Microsoft Agent Framework (MAF)**: Is a production-ready SDK for building AI agents. It provides a streamlined API for creating agents with tool calling, conversation management, and Azure identity integration.
+- **Microsoft Agent Framework (MAF)**: Is a production-ready SDK for building AI agents. It provides a streamlined API for creating agents with tool calling, conversation management, and support for Azure and OpenAI-compatible providers.
 - **Azure AI Agent Service**: Is a platform and deployment service in Azure Foundry for agents. It offers built-in connectivity to services like Azure OpenAI, Azure AI Search, Bing Search and code execution.
  
 Still not sure which one to choose?
@@ -349,7 +345,7 @@ Let's see if we can help you by going through some common use cases:
 > Q: I'm building production AI agent applications and want to get started quickly
 >
 
->A: The Microsoft Agent Framework is a great choice. It provides a simple, Pythonic API via `AzureAIProjectAgentProvider` that lets you define agents with tools and instructions in just a few lines of code.
+>A: The Microsoft Agent Framework is a great choice. It provides a simple, Pythonic API that lets you define agents with tools and instructions in just a few lines of code.
 
 >Q: I need enterprise-grade deployment with Azure integrations like Search and code execution
 >
@@ -363,14 +359,14 @@ Let's summarize the key differences in a table:
 
 | Framework | Focus | Core Concepts | Use Cases |
 | --- | --- | --- | --- |
-| Microsoft Agent Framework | Streamlined agent SDK with tool calling | Agents, Tools, Azure Identity | Building AI agents, tool use, multi-step workflows |
+| Microsoft Agent Framework | Streamlined agent SDK with tool calling | Agents, Tools, Provider clients | Building AI agents, tool use, multi-step workflows |
 | Azure AI Agent Service | Flexible models, enterprise security, Code generation, Tool calling | Modularity, Collaboration, Process Orchestration | Secure, scalable, and flexible AI agent deployment |
 
 ## Can I integrate my existing Azure ecosystem tools directly, or do I need standalone solutions?
 
 The answer is yes, you can integrate your existing Azure ecosystem tools directly with Azure AI Agent Service especially, as it has been built to work seamlessly with other Azure services. You could for example integrate Bing, Azure AI Search, and Azure Functions. There's also deep integration with Microsoft Foundry.
 
-The Microsoft Agent Framework also integrates with Azure services through `AzureAIProjectAgentProvider` and Azure identity, letting you call Azure services directly from your agent tools.
+The Microsoft Agent Framework also integrates with Azure services through Microsoft Foundry clients and Azure identity, while OpenAI-compatible clients let you run the same agent logic on non-Azure model providers.
 
 ## Sample Codes
 

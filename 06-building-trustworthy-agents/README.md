@@ -163,22 +163,20 @@ Here is a code snippet using the Microsoft Agent Framework to show how this conc
 
 ```python
 import os
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
-# Create the provider with human-in-the-loop approval
-provider = AzureAIProjectAgentProvider(
-    credential=AzureCliCredential(),
-)
+provider = create_provider()
 
-# Create the agent with a human approval step
-response = provider.create_response(
-    input="Write a 4-line poem about the ocean.",
+# Create the agent with a human approval instruction
+agent = await provider.create_agent(
+    name="ApprovalAgent",
     instructions="You are a helpful assistant. Ask for user approval before finalizing.",
 )
 
+response = await agent.run("Write a 4-line poem about the ocean.")
+
 # The user can review and approve the response
-print(response.output_text)
+print(response)
 user_input = input("Do you approve? (APPROVE/REJECT): ")
 if user_input == "APPROVE":
     print("Response approved.")
