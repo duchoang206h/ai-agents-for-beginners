@@ -6,6 +6,7 @@ azure-search-documents
 
 # Microsoft Agent Framework
 agent-framework
+agent-framework-foundry
 a2a-sdk
 
 # Model Context Protocol

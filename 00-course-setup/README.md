@@ -87,7 +87,13 @@ Remove-Item -Recurse -Force .git
 
 This course offers a series of Jupyter Notebooks that you can run with to get hands-on experience building AI Agents.
 
-The code samples use **Microsoft Agent Framework (MAF)** with the `AzureAIProjectAgentProvider`, which connects to **Azure AI Agent Service V2** (the Responses API) through **Microsoft Foundry**.
+The Python code samples use **Microsoft Agent Framework (MAF)** with a shared provider helper in `shared/agent_provider.py`. The helper keeps the notebook code provider-agnostic and can create agents with:
+
+- OpenAI
+- GitHub Models
+- MiniMax
+- Any OpenAI-compatible endpoint, such as Ollama, LM Studio, vLLM, or a third-party compatible API
+- Azure AI Foundry
 
 All Python notebooks are labelled `*-python-agent-framework.ipynb`.
 
@@ -122,9 +128,10 @@ All Python notebooks are labelled `*-python-agent-framework.ipynb`.
     dotnet --list-sdks
     ```
 
-- **Azure CLI** — Required for authentication. Install from [aka.ms/installazurecli](https://aka.ms/installazurecli).
-- **Azure Subscription** — For access to Microsoft Foundry and Azure AI Agent Service.
-- **Microsoft Foundry Project** — A project with a deployed model (e.g., `gpt-4o`). See [Step 1](#step-1-create-a-microsoft-foundry-project) below.
+- **Azure CLI** — Required only when you run the Azure AI Foundry provider. Install from [aka.ms/installazurecli](https://aka.ms/installazurecli).
+- **Azure Subscription** — Required only for Microsoft Foundry and Azure AI Agent Service.
+- **Microsoft Foundry Project** — Required only for the Azure provider. See [Step 1](#step-1-create-a-microsoft-foundry-project) below.
+- **OpenAI or compatible provider credentials** — Required when you run OpenAI, GitHub Models, MiniMax, or another OpenAI-compatible endpoint.
 
 We have included a `requirements.txt` file in the root of this repository that contains all the required Python packages to run the code samples.
 
@@ -141,6 +148,45 @@ We recommend creating a Python virtual environment to avoid any conflicts and is
 Make sure that you are using the right version of Python in VSCode.
 
 ![image](https://github.com/user-attachments/assets/a85e776c-2edb-4331-ae5b-6bfdfb98ee0e)
+
+## Choose an AI Provider
+
+Most Python notebooks call `create_provider()` from `shared/agent_provider.py`. You can force a provider with `AI_AGENT_PROVIDER`, or leave it unset and let the helper auto-detect credentials in this order:
+
+1. `OPENAI_BASE_URL` for an OpenAI-compatible endpoint
+2. `OPENAI_API_KEY` for OpenAI
+3. `MINIMAX_API_KEY` for MiniMax
+4. `GITHUB_TOKEN` for GitHub Models
+5. Azure AI Foundry
+
+Supported `AI_AGENT_PROVIDER` values are:
+
+| Provider | Required variables |
+|----------|--------------------|
+| `openai` | `OPENAI_API_KEY`, optional `OPENAI_MODEL_ID` |
+| `openai-compatible` | `OPENAI_BASE_URL`, optional `OPENAI_API_KEY`, optional `OPENAI_MODEL_ID` |
+| `github` | `GITHUB_TOKEN`, optional `GITHUB_ENDPOINT`, optional `GITHUB_MODEL_ID` |
+| `minimax` | `MINIMAX_API_KEY`, optional `MINIMAX_BASE_URL`, optional `MINIMAX_MODEL_ID` |
+| `azure` | `AZURE_AI_PROJECT_ENDPOINT`, `AZURE_AI_MODEL_DEPLOYMENT_NAME`, plus `az login` |
+
+### OpenAI
+
+```env
+AI_AGENT_PROVIDER=openai
+OPENAI_API_KEY=<your-openai-api-key>
+OPENAI_MODEL_ID=gpt-4o-mini
+```
+
+### OpenAI-Compatible Local or Third-Party Endpoint
+
+Use this option for providers that expose an OpenAI-compatible API, including local runtimes such as Ollama, LM Studio, or vLLM.
+
+```env
+AI_AGENT_PROVIDER=openai-compatible
+OPENAI_BASE_URL=http://localhost:11434/v1
+OPENAI_API_KEY=not-needed
+OPENAI_MODEL_ID=llama3.2
+```
 
 ## Set Up Microsoft Foundry and Azure AI Agent Service
 
@@ -165,7 +211,7 @@ From your project in the Microsoft Foundry portal:
 
 ### Step 3: Sign in to Azure with `az login`
 
-All notebooks use **`AzureCliCredential`** for authentication — no API keys to manage. This requires you to be signed in via the Azure CLI.
+The Azure provider uses **`AzureCliCredential`** for authentication — no Azure API keys to manage. This step is required only when you set `AI_AGENT_PROVIDER=azure` or let the helper fall back to Azure.
 
 1. **Install the Azure CLI** if you haven't already: [aka.ms/installazurecli](https://aka.ms/installazurecli)
 
@@ -189,7 +235,7 @@ All notebooks use **`AzureCliCredential`** for authentication — no API keys to
     az account show
     ```
 
-> **Why `az login`?** The notebooks authenticate using `AzureCliCredential` from the `azure-identity` package. This means your Azure CLI session provides the credentials — no API keys or secrets in your `.env` file. This is a [security best practice](https://learn.microsoft.com/azure/developer/ai/keyless-connections).
+> **Why `az login`?** Azure mode authenticates using `AzureCliCredential` from the `azure-identity` package. This means your Azure CLI session provides the credentials — no Azure keys or secrets in your `.env` file. This is a [security best practice](https://learn.microsoft.com/azure/developer/ai/keyless-connections).
 
 ### Step 4: Create Your `.env` File
 
@@ -205,7 +251,7 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-Open `.env` and fill in these two values:
+Open `.env` and fill in these values if you are using the Azure provider:
 
 ```env
 AZURE_AI_PROJECT_ENDPOINT=https://<your-project>.services.ai.azure.com/api/projects/<your-project-id>
@@ -217,7 +263,7 @@ AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o
 | `AZURE_AI_PROJECT_ENDPOINT` | Foundry portal → your project → **Overview** page |
 | `AZURE_AI_MODEL_DEPLOYMENT_NAME` | Foundry portal → **Models + Endpoints** → your deployed model's name |
 
-That's it for most lessons! The notebooks will authenticate automatically through your `az login` session.
+If you use OpenAI, GitHub Models, MiniMax, or another OpenAI-compatible endpoint, use the provider variables from [Choose an AI Provider](#choose-an-ai-provider) instead. Azure notebooks will authenticate automatically through your `az login` session.
 
 ### Step 5: Install Python Dependencies
 
@@ -236,9 +282,9 @@ Lesson 5 uses **Azure AI Search** for retrieval-augmented generation. If you pla
 | `AZURE_SEARCH_SERVICE_ENDPOINT` | Azure portal → your **Azure AI Search** resource → **Overview** → URL |
 | `AZURE_SEARCH_API_KEY` | Azure portal → your **Azure AI Search** resource → **Settings** → **Keys** → primary admin key |
 
-## Additional Setup for Lesson 6 and Lesson 8 (GitHub Models)
+## Additional Setup for GitHub Models
 
-Some notebooks in lessons 6 and 8 use **GitHub Models** instead of Azure AI Foundry. If you plan to run those samples, add these variables to your `.env` file:
+Set `AI_AGENT_PROVIDER=github` to run the provider-agnostic Python notebooks with **GitHub Models** instead of Azure AI Foundry or OpenAI. Add these variables to your `.env` file:
 
 | Variable | Where to find it |
 |----------|-----------------|
@@ -260,7 +306,7 @@ Add these variables to your `.env` file:
 
 **Available models**: `MiniMax-M2.7` (recommended), `MiniMax-M2.7-highspeed` (faster responses)
 
-The code samples that use `OpenAIChatClient` (e.g., Lesson 14 hotel booking workflow) will automatically detect and use your MiniMax configuration when `MINIMAX_API_KEY` is set.
+The provider-agnostic Python notebooks will automatically detect and use your MiniMax configuration when `MINIMAX_API_KEY` is set, or you can force it with `AI_AGENT_PROVIDER=minimax`.
 
 ## Additional Setup for Lesson 8 (Bing Grounding Workflow)
 

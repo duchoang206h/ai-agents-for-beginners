@@ -54,13 +54,9 @@ The following Python snippet demonstrates a simple planning agent decomposing a 
 ```python
 from pydantic import BaseModel
 from enum import Enum
-from typing import List, Optional, Union
-import json
-import os
-from typing import Optional
+from typing import List
 from pprint import pprint
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
 class AgentEnum(str, Enum):
     FlightBooking = "flight_booking"
@@ -81,7 +77,7 @@ class TravelPlan(BaseModel):
     subtasks: List[TravelSubTask]
     is_greeting: bool
 
-provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+provider = create_provider()
 
 # Define the user message
 system_prompt = """You are a planner agent.
@@ -101,10 +97,14 @@ system_prompt = """You are a planner agent.
 
 user_message = "Create a travel plan for a family of 2 kids from Singapore to Melbourne"
 
-response = client.create_response(input=user_message, instructions=system_prompt)
+planning_agent = await provider.create_agent(
+    name="TravelPlanner",
+    instructions=system_prompt,
+    response_format=TravelPlan,
+)
 
-response_content = response.output_text
-pprint(json.loads(response_content))
+response = await planning_agent.run(user_message)
+pprint(response)
 ```
 
 ### Planning Agent with Multi-Agent Orchestration
@@ -124,7 +124,7 @@ The following Python code sample illustrates these steps:
 from pydantic import BaseModel
 
 from enum import Enum
-from typing import List, Optional, Union
+from typing import List
 
 class AgentEnum(str, Enum):
     FlightBooking = "flight_booking"
@@ -145,16 +145,12 @@ class TravelPlan(BaseModel):
     main_task: str
     subtasks: List[TravelSubTask]
     is_greeting: bool
-import json
-import os
-from typing import Optional
 
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
 # Create the client
 
-provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+provider = create_provider()
 
 from pprint import pprint
 
@@ -172,13 +168,17 @@ system_prompt = """You are a planner agent.
 
 user_message = "Create a travel plan for a family of 2 kids from Singapore to Melbourne"
 
-response = client.create_response(input=user_message, instructions=system_prompt)
+planning_agent = await provider.create_agent(
+    name="TravelPlanner",
+    instructions=system_prompt,
+    response_format=TravelPlan,
+)
 
-response_content = response.output_text
+response = await planning_agent.run(user_message)
 
-# Print the response content after loading it as JSON
+# Print the structured response
 
-pprint(json.loads(response_content))
+pprint(response)
 ```
 
 What follows is the output from the previous code and you can then use this structured output to route to `assigned_agent` and summarize the travel plan to the end user.
@@ -223,9 +223,10 @@ Additionally, user feedback (e.g. a human deciding they prefer an earlier flight
 e.g sample code
 
 ```python
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 #.. same as previous code and pass on the user history, current plan
+
+provider = create_provider()
 
 system_prompt = """You are a planner agent to optimize the
     Your job is to decide which agents to run based on the user's request.
@@ -239,10 +240,14 @@ system_prompt = """You are a planner agent to optimize the
 
 user_message = "Create a travel plan for a family of 2 kids from Singapore to Melbourne"
 
-response = client.create_response(
-    input=user_message,
+planning_agent = await provider.create_agent(
+    name="TravelPlanner",
     instructions=system_prompt,
-    context=f"Previous travel plan - {TravelPlan}",
+    response_format=TravelPlan,
+)
+
+response = await planning_agent.run(
+    f"{user_message}\n\nPrevious travel plan - {TravelPlan}"
 )
 # .. re-plan and send the tasks to respective agents
 ```

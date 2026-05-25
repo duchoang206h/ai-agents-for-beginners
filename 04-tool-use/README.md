@@ -206,7 +206,7 @@ Here are some examples of how you can implement the Tool Use Design Pattern usin
 
 ### Microsoft Agent Framework
 
-<a href="https://learn.microsoft.com/azure/ai-services/agents/overview" target="_blank">Microsoft Agent Framework</a> is an open-source AI framework for building AI agents. It simplifies the process of using function calling by allowing you to define tools as Python functions with the `@tool` decorator. The framework handles the back-and-forth communication between the model and your code. It also provides access to pre-built tools like File Search and Code Interpreter through the `AzureAIProjectAgentProvider`.
+<a href="https://learn.microsoft.com/azure/ai-services/agents/overview" target="_blank">Microsoft Agent Framework</a> is an open-source AI framework for building AI agents. It simplifies the process of using function calling by allowing you to define tools as Python functions with the `@tool` decorator. The framework handles the back-and-forth communication between the model and your code. In this course, the shared provider helper lets these examples run on Azure AI Foundry, OpenAI, GitHub Models, MiniMax, or another OpenAI-compatible endpoint.
 
 The following diagram illustrates the process of function calling with the Microsoft Agent Framework:
 
@@ -216,8 +216,7 @@ In the Microsoft Agent Framework, tools are defined as decorated functions. We c
 
 ```python
 from agent_framework import tool
-from agent_framework.azure import AzureAIProjectAgentProvider
-from azure.identity import AzureCliCredential
+from shared.agent_provider import create_provider
 
 @tool
 def get_current_time(location: str) -> str:
@@ -225,7 +224,7 @@ def get_current_time(location: str) -> str:
     ...
 
 # Create the client
-provider = AzureAIProjectAgentProvider(credential=AzureCliCredential())
+provider = create_provider()
 
 # Create an agent and run with the tool
 agent = await provider.create_agent(name="TimeAgent", instructions="Use available tools to answer questions.", tools=get_current_time)
